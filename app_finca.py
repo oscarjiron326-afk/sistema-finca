@@ -119,7 +119,7 @@ except Exception as error:
     st.error(f"Error de conexión: {error} 🔴")
 
    
-   st.subheader("📁 Cargar datos reales desde Excel")
+st.subheader("📁 Cargar datos reales desde Excel")
 archivo_subido = st.file_uploader("Sube el archivo Excel de la finca aquí", type=["xlsx", "xls"])
 
 if archivo_subido is not None:
