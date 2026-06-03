@@ -18,6 +18,19 @@ def obtener_conexion():
         database="bpvhrmazb58ojyt1ynth"
     )
 
+# --- EL CEREBRO AUTOMÁTICO ---
+def calcular_estado_automatico(cultivo, humedad):
+    cultivo_limpio = str(cultivo).lower()
+    if "arroz" in cultivo_limpio:
+        return "Óptimo" if humedad >= 75 else "Requiere Riego (Crítico)"
+    elif "frijol" in cultivo_limpio:
+        return "Óptimo" if humedad >= 40 else "Requiere Riego"
+    elif "maíz" in cultivo_limpio or "maiz" in cultivo_limpio:
+        return "Óptimo" if humedad >= 50 else "Requiere Riego"
+    else:
+        return "Óptimo" if humedad >= 45 else "Requiere Riego"
+
+# --- PANEL LATERAL (Registro Manual Automatizado) ---
 st.sidebar.header("➕ Registrar Nueva Parcela")
 
 with st.sidebar.form("formulario_parcela", clear_on_submit=True):
@@ -26,21 +39,24 @@ with st.sidebar.form("formulario_parcela", clear_on_submit=True):
     hectareas = st.number_input("Hectáreas", min_value=1, max_value=300, value=10)
     cultivo = st.text_input("Tipo de Cultivo (Ej: Arroz, Caña)").strip()
     humedad = st.slider("Humedad del Suelo (%)", 0, 100, 50)
-    estado = st.selectbox("Estado", ["Óptimo", "Requiere Riego", "Inactivo"])
+    # ELIMINAMOS la pregunta del estado. ¡El sistema lo decide ahora!
     
     boton_guardar = st.form_submit_button("Guardar en Base de Datos")
 
 if boton_guardar:
     if id_parcela and cultivo:
         try:
+            # Calculamos el estado matemáticamente antes de guardar
+            estado_calculado = calcular_estado_automatico(cultivo, humedad)
+            
             conn = obtener_conexion()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO registro_parcelas (id_parcela, sector, hectareas, cultivo, humedad_suelo_pct, estado) VALUES (%s, %s, %s, %s, %s, %s)", 
-                           (id_parcela, sector, hectareas, cultivo, humedad, estado))
+                           (id_parcela, sector, hectareas, cultivo, humedad, estado_calculado))
             conn.commit()
             cursor.close()
             conn.close()
-            st.sidebar.success(f"¡{id_parcela} guardada correctamente! 🎉")
+            st.sidebar.success(f"¡{id_parcela} guardada como: {estado_calculado}! 🎉")
         except Exception as e:
             st.sidebar.error(f"Error al guardar: {e}")
     else:
@@ -86,37 +102,30 @@ try:
         with pestana2:
             st.subheader("🔍 Explorador y Filtro de Datos")
             
-            # 1. Creamos la barra de búsqueda
             busqueda = st.text_input("🔎 Escribe el Sector o ID de la parcela para filtrar (Ej: 'Norte' o 'PAR-002'):")
             
-            # 2. Lógica del multiplexor: filtramos los datos según lo que escriba el usuario
             if busqueda:
-                # Filtramos ignorando mayúsculas y minúsculas
                 df_filtrado = df[df['id_parcela'].str.contains(busqueda, case=False, na=False) | 
                                  df['sector'].str.contains(busqueda, case=False, na=False)]
             else:
-                df_filtrado = df # Si no hay búsqueda, mostramos todo
+                df_filtrado = df 
             
-            # 3. Dibujamos la tabla con los datos filtrados
             st.dataframe(df_filtrado, use_container_width=True)
             
-            # 4. Exportar a Excel con formato Profesional
+            # Exportar a Excel con formato Profesional
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                 df_filtrado.to_excel(writer, index=False, sheet_name='Reporte_Finca')
                 
-                # Acceder al motor interno de Excel para inyectar diseño
                 workbook = writer.book
                 worksheet = writer.sheets['Reporte_Finca']
                 
-                # Definir colores corporativos y bordes
-                color_enc = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid") # Azul industrial
-                fuente_enc = Font(color="FFFFFF", bold=True) # Letra blanca y negrita
+                color_enc = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid") 
+                fuente_enc = Font(color="FFFFFF", bold=True) 
                 alineacion_centro = Alignment(horizontal="center", vertical="center")
                 borde_fino = Border(left=Side(style='thin'), right=Side(style='thin'), 
                                      top=Side(style='thin'), bottom=Side(style='thin'))
 
-                # Aplicar pintura a los encabezados y auto-ajustar las columnas
                 for col_num, nombre_columna in enumerate(df_filtrado.columns):
                     celda = worksheet.cell(row=1, column=col_num + 1)
                     celda.fill = color_enc
@@ -124,12 +133,10 @@ try:
                     celda.alignment = alineacion_centro
                     celda.border = borde_fino
                     
-                    # Matemática sencilla para calcular el ancho ideal de la columna
                     ancho_col = max(len(str(nombre_columna)), df_filtrado[nombre_columna].astype(str).map(len).max()) + 2
                     letra_col = get_column_letter(col_num + 1)
                     worksheet.column_dimensions[letra_col].width = ancho_col
 
-                # Aplicar bordes y centrado a todas las filas de datos
                 for fila in worksheet.iter_rows(min_row=2, max_row=len(df_filtrado) + 1, min_col=1, max_col=len(df_filtrado.columns)):
                     for celda in fila:
                         celda.alignment = alineacion_centro
@@ -150,54 +157,50 @@ try:
 except Exception as error:
     st.error(f"Error de conexión: {error} 🔴")
 
-# --- MÓDULO DE CARGA MASIVA EXCEL ---
+# --- MÓDULO DE CARGA MASIVA EXCEL (AUTOMATIZADO) ---
 st.markdown("---")
 st.subheader("📁 Cargar datos reales desde Excel")
 archivo_subido = st.file_uploader("Sube el archivo Excel de la finca aquí", type=["xlsx", "xls"])
 
 if archivo_subido is not None:
-    # 1. Leer el archivo Excel
     df_cargado = pd.read_excel(archivo_subido)
-    
-    # EL TRUCO: Forzamos a que las columnas se llamen exactamente como la base de datos
     df_cargado.columns = ['id_parcela', 'sector', 'hectareas', 'cultivo', 'humedad_suelo_pct', 'estado']
     
     st.write("Vista previa de los datos a importar:")
     st.dataframe(df_cargado)
     
-    # 2. Botón de seguridad para confirmar la inyección
-    if st.button("Guardar estos datos en la Nube"):
+    if st.button("Guardar y Automatizar Estados en la Nube"):
         try:
             conexion = obtener_conexion()
             cursor = conexion.cursor()
             registros_guardados = 0
             
-            # 3. Recorrer cada fila del Excel e inyectarla a la base de datos
             for index, fila in df_cargado.iterrows():
                 sql = """INSERT IGNORE INTO registro_parcelas 
                          (id_parcela, sector, hectareas, cultivo, humedad_suelo_pct, estado) 
                          VALUES (%s, %s, %s, %s, %s, %s)"""
                 
-                # Extraemos los datos con los nombres limpios
+                # ¡LA MAGIA OCURRE AQUÍ! Recalculamos el estado usando el cerebro automático
+                estado_inteligente = calcular_estado_automatico(fila['cultivo'], fila['humedad_suelo_pct'])
+                
                 valores = (
                     str(fila['id_parcela']), 
                     str(fila['sector']), 
                     int(fila['hectareas']), 
                     str(fila['cultivo']), 
                     int(fila['humedad_suelo_pct']), 
-                    str(fila['estado'])
+                    estado_inteligente # Mandamos a la bóveda el estado calculado, no el del Excel
                 )
                 
                 cursor.execute(sql, valores)
-                registros_guardados += cursor.rowcount # Cuenta cuántos se guardaron con éxito
+                registros_guardados += cursor.rowcount 
                 
-            # 4. Sellar la bóveda
             conexion.commit()
             cursor.close()
             conexion.close()
             
-            st.success(f"¡Operación exitosa! Se guardaron {registros_guardados} parcelas en el servidor global.")
-            st.balloons() # Un efecto visual para celebrar que los datos subieron a la nube
+            st.success(f"¡Operación exitosa! Se automatizaron y guardaron {registros_guardados} parcelas.")
+            st.balloons() 
             
         except Exception as e:
             st.error(f"Hubo un error de conexión al inyectar: {e}")
