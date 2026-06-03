@@ -110,8 +110,22 @@ try:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
+
+
     else:
         st.info("La base de datos está vacía. Utiliza el panel izquierdo para registrar datos.")
 
 except Exception as error:
     st.error(f"Error de conexión: {error} 🔴")
+
+    st.subheader("📁 Cargar datos desde Excel")
+archivo_subido = st.file_uploader("Sube el archivo Excel de la finca aquí", type=["xlsx", "xls"])
+
+if archivo_subido is not None:
+    # 1. El cerebro (pandas) lee el archivo Excel
+    df_cargado = pd.read_excel(archivo_subido)
+    
+    # 2. La pantalla (streamlit) lo muestra para que se vea
+    st.success("¡Archivo cargado con éxito!")
+    st.write("Vista previa de los datos del Excel:")
+    st.dataframe(df_cargado)
