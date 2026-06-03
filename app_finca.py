@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import mysql.connector
 import io
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 # 1. Configuración de la página
 st.set_page_config(page_title="Sistema Agrícola", layout="wide")
@@ -98,10 +100,41 @@ try:
             # 3. Dibujamos la tabla con los datos filtrados
             st.dataframe(df_filtrado, use_container_width=True)
             
-            # 4. El botón de descarga ahora descarga solo lo que está filtrado
+            # 4. Exportar a Excel con formato Profesional
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                df_filtrado.to_excel(writer, index=False, sheet_name='Reporte_Filtro')
+                df_filtrado.to_excel(writer, index=False, sheet_name='Reporte_Finca')
+                
+                # Acceder al motor interno de Excel para inyectar diseño
+                workbook = writer.book
+                worksheet = writer.sheets['Reporte_Finca']
+                
+                # Definir colores corporativos y bordes
+                color_enc = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid") # Azul industrial
+                fuente_enc = Font(color="FFFFFF", bold=True) # Letra blanca y negrita
+                alineacion_centro = Alignment(horizontal="center", vertical="center")
+                borde_fino = Border(left=Side(style='thin'), right=Side(style='thin'), 
+                                     top=Side(style='thin'), bottom=Side(style='thin'))
+
+                # Aplicar pintura a los encabezados y auto-ajustar las columnas
+                for col_num, nombre_columna in enumerate(df_filtrado.columns):
+                    celda = worksheet.cell(row=1, column=col_num + 1)
+                    celda.fill = color_enc
+                    celda.font = fuente_enc
+                    celda.alignment = alineacion_centro
+                    celda.border = borde_fino
+                    
+                    # Matemática sencilla para calcular el ancho ideal de la columna
+                    ancho_col = max(len(str(nombre_columna)), df_filtrado[nombre_columna].astype(str).map(len).max()) + 2
+                    letra_col = get_column_letter(col_num + 1)
+                    worksheet.column_dimensions[letra_col].width = ancho_col
+
+                # Aplicar bordes y centrado a todas las filas de datos
+                for fila in worksheet.iter_rows(min_row=2, max_row=len(df_filtrado) + 1, min_col=1, max_col=len(df_filtrado.columns)):
+                    for celda in fila:
+                        celda.alignment = alineacion_centro
+                        celda.border = borde_fino
+                        
             excel_data = buffer.getvalue()
             
             st.download_button(
