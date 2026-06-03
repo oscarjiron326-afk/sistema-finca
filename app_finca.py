@@ -118,14 +118,50 @@ try:
 except Exception as error:
     st.error(f"Error de conexión: {error} 🔴")
 
-    st.subheader("📁 Cargar datos desde Excel")
+   
+   st.subheader("📁 Cargar datos reales desde Excel")
 archivo_subido = st.file_uploader("Sube el archivo Excel de la finca aquí", type=["xlsx", "xls"])
 
 if archivo_subido is not None:
-    # 1. El cerebro (pandas) lee el archivo Excel
+    # 1. Leer el archivo Excel
     df_cargado = pd.read_excel(archivo_subido)
     
-    # 2. La pantalla (streamlit) lo muestra para que se vea
-    st.success("¡Archivo cargado con éxito!")
-    st.write("Vista previa de los datos del Excel:")
+    st.write("Vista previa de los datos a importar:")
     st.dataframe(df_cargado)
+    
+    # 2. Botón de seguridad para confirmar la inyección
+    if st.button("Guardar estos datos en la Nube"):
+        try:
+            conexion = obtener_conexion()
+            cursor = conexion.cursor()
+            registros_guardados = 0
+            
+            # 3. Recorrer cada fila del Excel e inyectarla a la base de datos
+            for index, fila in df_cargado.iterrows():
+                sql = """INSERT IGNORE INTO registro_parcelas 
+                         (id_parcela, sector, hectareas, cultivo, humedad_suelo_pct, estado) 
+                         VALUES (%s, %s, %s, %s, %s, %s)"""
+                
+                # Extraemos los datos de la fila actual
+                valores = (
+                    str(fila['id_parcela']), 
+                    str(fila['sector']), 
+                    int(fila['hectareas']), 
+                    str(fila['cultivo']), 
+                    int(fila['humedad_suelo_pct']), 
+                    str(fila['estado'])
+                )
+                
+                cursor.execute(sql, valores)
+                registros_guardados += cursor.rowcount # Cuenta cuántos se guardaron con éxito
+                
+            # 4. Sellar la bóveda
+            conexion.commit()
+            cursor.close()
+            conexion.close()
+            
+            st.success(f"¡Operación exitosa! Se guardaron {registros_guardados} parcelas en el servidor global.")
+            st.balloons() # Un efecto visual para celebrar que los datos subieron a la nube
+            
+        except Exception as e:
+            st.error(f"Hubo un error de conexión: {e}")
