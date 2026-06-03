@@ -159,6 +159,9 @@ if archivo_subido is not None:
     # 1. Leer el archivo Excel
     df_cargado = pd.read_excel(archivo_subido)
     
+    # EL TRUCO: Forzamos a que las columnas se llamen exactamente como la base de datos
+    df_cargado.columns = ['id_parcela', 'sector', 'hectareas', 'cultivo', 'humedad_suelo_pct', 'estado']
+    
     st.write("Vista previa de los datos a importar:")
     st.dataframe(df_cargado)
     
@@ -175,14 +178,14 @@ if archivo_subido is not None:
                          (id_parcela, sector, hectareas, cultivo, humedad_suelo_pct, estado) 
                          VALUES (%s, %s, %s, %s, %s, %s)"""
                 
-                # AQUI ESTÁ LA CORRECCIÓN: Nombres de columnas exactamente iguales a tu Excel
+                # Extraemos los datos con los nombres limpios
                 valores = (
-                    str(fila['ID_Parcela']), 
-                    str(fila['Sector']), 
-                    int(fila['Hectareas']), 
-                    str(fila['Cultivo']), 
-                    int(fila['Humedad_Suelo_%']), 
-                    str(fila['Estado'])
+                    str(fila['id_parcela']), 
+                    str(fila['sector']), 
+                    int(fila['hectareas']), 
+                    str(fila['cultivo']), 
+                    int(fila['humedad_suelo_pct']), 
+                    str(fila['estado'])
                 )
                 
                 cursor.execute(sql, valores)
