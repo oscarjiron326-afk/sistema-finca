@@ -15,6 +15,7 @@ def obtener_conexion():
         password="3OEBQ5ERzoCLY6u9SvXG", 
         database="bpvhrmazb58ojyt1ynth"
     )
+
 st.sidebar.header("➕ Registrar Nueva Parcela")
 
 with st.sidebar.form("formulario_parcela", clear_on_submit=True):
@@ -110,15 +111,14 @@ try:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-
-
     else:
         st.info("La base de datos está vacía. Utiliza el panel izquierdo para registrar datos.")
 
 except Exception as error:
     st.error(f"Error de conexión: {error} 🔴")
 
-   
+# --- MÓDULO DE CARGA MASIVA EXCEL ---
+st.markdown("---")
 st.subheader("📁 Cargar datos reales desde Excel")
 archivo_subido = st.file_uploader("Sube el archivo Excel de la finca aquí", type=["xlsx", "xls"])
 
@@ -142,14 +142,14 @@ if archivo_subido is not None:
                          (id_parcela, sector, hectareas, cultivo, humedad_suelo_pct, estado) 
                          VALUES (%s, %s, %s, %s, %s, %s)"""
                 
-                # Extraemos los datos de la fila actual
+                # AQUI ESTÁ LA CORRECCIÓN: Nombres de columnas exactamente iguales a tu Excel
                 valores = (
-                    str(fila['id_parcela']), 
-                    str(fila['sector']), 
-                    int(fila['hectareas']), 
-                    str(fila['cultivo']), 
-                    int(fila['humedad_suelo_pct']), 
-                    str(fila['estado'])
+                    str(fila['ID_Parcela']), 
+                    str(fila['Sector']), 
+                    int(fila['Hectareas']), 
+                    str(fila['Cultivo']), 
+                    int(fila['Humedad_Suelo_%']), 
+                    str(fila['Estado'])
                 )
                 
                 cursor.execute(sql, valores)
@@ -164,4 +164,4 @@ if archivo_subido is not None:
             st.balloons() # Un efecto visual para celebrar que los datos subieron a la nube
             
         except Exception as e:
-            st.error(f"Hubo un error de conexión: {e}")
+            st.error(f"Hubo un error de conexión al inyectar: {e}")
