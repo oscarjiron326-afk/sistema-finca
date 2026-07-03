@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import mysql.connector
 import io
-import requests # <--- NUEVA HERRAMIENTA: Para enviar señales por internet a Blynk
+import requests 
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
@@ -10,7 +10,6 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="Sistema Agrícola V3.0", layout="wide")
 
 # --- MÓDULO 1: SISTEMA DE SEGURIDAD Y LOGIN ---
-# Inicializamos la variable de sesión si no existe
 if 'autorizado' not in st.session_state:
     st.session_state['autorizado'] = False
 
@@ -27,14 +26,12 @@ if not st.session_state['autorizado']:
             btn_login = st.form_submit_button("Entrar al Sistema", use_container_width=True)
             
             if btn_login:
-                # Credenciales quemadas en el código para máxima seguridad
                 if usuario == "admin" and clave == "finca2026":
                     st.session_state['autorizado'] = True
-                    st.rerun() # Recarga la página para quitar el login
+                    st.rerun() 
                 else:
                     st.error("❌ Credenciales incorrectas. Acceso denegado.")
                     
-    # Si no está autorizado, detenemos la ejecución del resto del código aquí mismo.
     st.stop()
 
 # ==============================================================================
@@ -55,19 +52,15 @@ def obtener_conexion():
 
 # --- MÓDULO 3: ALERTAS DIRECTAS AL CELULAR VÍA BLYNK ---
 def disparar_alerta_movil(id_parcela, humedad, agua):
-    # API Oficial de Blynk 2.0 para registrar eventos y hacer sonar el celular
-    TOKEN_BLYNK = "PON_AQUI_TU_TOKEN_DE_BLYNK" # Reemplaza esto luego con tu token real
+    # Token de seguridad de Blynk inyectado 
+    TOKEN_BLYNK = "rhxoHSRAh8D9BaJ3iu05vjaUCyDMCGW9" 
     EVENTO = "alerta_riego"
     
-    # El mensaje que aparecerá en la pantalla del celular del dueño
     descripcion = f"URGENTE: {id_parcela} bajo a {humedad}%. Requiere {agua}m3 de agua."
     
-    # Armamos la URL exacta que exige Blynk
     url_blynk = f"https://blynk.cloud/external/api/logEvent?token={TOKEN_BLYNK}&event={EVENTO}&description={descripcion}"
     
     try:
-        # El comando requests.get "presiona el gatillo" hacia internet
-        # Funciona 100% de las veces, asegurando que la alerta llegue y pite
         requests.get(url_blynk, timeout=3)
         st.toast(f"📱 Señal enviada al teléfono móvil. {id_parcela} requiere riego.", icon="🚨")
     except Exception as e:
@@ -137,7 +130,6 @@ try:
             st.subheader("📝 Cuadrícula Dinámica de Datos")
             st.info("💡 Haz doble clic en cualquier celda para editar (ej: cambia la humedad). Luego presiona el botón para sincronizar con el servidor.")
             
-            # st.data_editor crea la magia del Excel interactivo
             df_editado = st.data_editor(df, use_container_width=True, hide_index=True)
             
             if st.button("🔄 Sincronizar Cambios con la Base de Datos", type="primary"):
@@ -145,9 +137,7 @@ try:
                     conn = obtener_conexion()
                     cursor = conn.cursor()
                     
-                    # Recorremos el dataframe editado y actualizamos la base de datos
                     for index, fila in df_editado.iterrows():
-                        # Recalculamos el estado inteligentemente por si editaron la humedad
                         estado_nuevo, _ = calcular_estado_y_agua(fila['cultivo'], fila['humedad_suelo_pct'], fila['hectareas'])
                         
                         sql = """INSERT INTO registro_parcelas (id_parcela, sector, hectareas, cultivo, humedad_suelo_pct, estado) 
@@ -162,7 +152,7 @@ try:
                     cursor.close()
                     conn.close()
                     st.success("¡Base de datos sincronizada con éxito! Todos los cambios han sido guardados.")
-                    st.rerun() # Refresca la vista
+                    st.rerun() 
                 except Exception as e:
                     st.error(f"Error al sincronizar: {e}")
 
@@ -193,7 +183,6 @@ try:
                         
             st.download_button(label="📥 Descargar Reporte (.xlsx)", data=buffer.getvalue(), file_name="reporte_finca_v3.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
-            # Botón de Cerrar Sesión
             st.markdown("---")
             if st.button("🚪 Cerrar Sesión"):
                 st.session_state['autorizado'] = False
