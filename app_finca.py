@@ -52,8 +52,8 @@ def obtener_conexion():
 
 # --- MÓDULO 3: ALERTAS DIRECTAS AL CELULAR VÍA BLYNK ---
 def disparar_alerta_movil(id_parcela, humedad, agua):
-    # Token de seguridad de Blynk inyectado 
-    TOKEN_BLYNK = "rhxoHSRAh8D9BaJ3iu05vjaUCyDMCGW9" 
+    # Token oficial y cuenta verificada
+    TOKEN_BLYNK = "wD5j1l-ymUsNVwJOy4jDw5zS0-fiylZS" 
     EVENTO = "alerta_riego"
     
     descripcion = f"URGENTE: {id_parcela} bajo a {humedad}%. Requiere {agua}m3 de agua."
