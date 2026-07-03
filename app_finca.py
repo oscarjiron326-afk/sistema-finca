@@ -13,7 +13,6 @@ st.set_page_config(page_title="Sistema Agrícola V3.0", layout="wide")
 if 'autorizado' not in st.session_state:
     st.session_state['autorizado'] = False
 
-# Pantalla de Login
 if not st.session_state['autorizado']:
     st.markdown("<h1 style='text-align: center; color: #1e3f20;'>🔒 Acceso Restringido</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Sistema Central de Monitoreo - Finca 300 Hectáreas</p>", unsafe_allow_html=True)
@@ -31,12 +30,7 @@ if not st.session_state['autorizado']:
                     st.rerun() 
                 else:
                     st.error("❌ Credenciales incorrectas. Acceso denegado.")
-                    
     st.stop()
-
-# ==============================================================================
-# SI EL CÓDIGO LLEGA HASTA AQUÍ, SIGNIFICA QUE EL USUARIO ESTÁ AUTORIZADO
-# ==============================================================================
 
 st.title("🌱 Panel de Control Central - Finca V3.0")
 st.markdown("---")
@@ -50,33 +44,36 @@ def obtener_conexion():
         database="bpvhrmazb58ojyt1ynth"
     )
 
-# --- MÓDULO 3: ALERTAS DIRECTAS AL CELULAR VÍA BLYNK ---
+# --- MÓDULO 3: ALERTAS DIRECTAS AL CELULAR VÍA BLYNK (CORREGIDO) ---
 def disparar_alerta_movil(id_parcela, humedad, agua):
-    # Token oficial y cuenta verificada
     TOKEN_BLYNK = "wD5j1l-ymUsNVwJOy4jDw5zS0-fiylZS" 
     EVENTO = "alerta_riego"
-    
     descripcion = f"URGENTE: {id_parcela} bajo a {humedad}%. Requiere {agua}m3 de agua."
     
-    url_blynk = f"https://blynk.cloud/external/api/logEvent?token={TOKEN_BLYNK}&event={EVENTO}&description={descripcion}"
+    # URL Base limpia
+    url_base = "https://blynk.cloud/external/api/logEvent"
+    
+    # Empaquetado seguro de parámetros para evitar que los espacios rompan el enlace
+    parametros = {
+        "token": TOKEN_BLYNK,
+        "event": EVENTO,
+        "description": descripcion
+    }
     
     try:
-        requests.get(url_blynk, timeout=3)
-        st.toast(f"📱 Señal enviada al teléfono móvil. {id_parcela} requiere riego.", icon="🚨")
+        # Se envía con los parámetros empaquetados
+        requests.get(url_base, params=parametros, timeout=3)
+        st.toast(f"📱 Señal enviada al teléfono móvil: {id_parcela}.", icon="🚨")
     except Exception as e:
-        st.warning("No se pudo conectar con el servidor móvil de Blynk, pero el registro se guardó.")
+        st.warning("No se pudo conectar con el servidor móvil.")
 
 # --- CEREBRO AUTOMÁTICO ---
 def calcular_estado_y_agua(cultivo, humedad, hectareas):
     cultivo_limpio = str(cultivo).lower()
-    if "arroz" in cultivo_limpio:
-        target = 75
-    elif "frijol" in cultivo_limpio:
-        target = 40
-    elif "maíz" in cultivo_limpio or "maiz" in cultivo_limpio:
-        target = 50
-    else:
-        target = 45
+    if "arroz" in cultivo_limpio: target = 75
+    elif "frijol" in cultivo_limpio: target = 40
+    elif "maíz" in cultivo_limpio or "maiz" in cultivo_limpio: target = 50
+    else: target = 45
         
     estado = "Óptimo" if humedad >= target else "Requiere Riego (Crítico)"
     deficit = target - humedad
@@ -84,7 +81,7 @@ def calcular_estado_y_agua(cultivo, humedad, hectareas):
         
     return estado, agua_m3
 
-# --- PANEL LATERAL (Registro Manual) ---
+# --- PANEL LATERAL ---
 st.sidebar.header("➕ Registrar Nueva Parcela")
 with st.sidebar.form("formulario_parcela", clear_on_submit=True):
     id_parcela = st.text_input("ID de la Parcela (Ej: PAR-006)").strip()
@@ -125,7 +122,6 @@ try:
         
         pestana1, pestana2 = st.tabs(["📊 Editor Interactivo (Live Excel)", "📥 Reportes Ejecutivos"])
         
-        # --- MÓDULO 2: EDICIÓN EN VIVO ---
         with pestana1:
             st.subheader("📝 Cuadrícula Dinámica de Datos")
             st.info("💡 Haz doble clic en cualquier celda para editar (ej: cambia la humedad). Luego presiona el botón para sincronizar con el servidor.")
@@ -138,7 +134,11 @@ try:
                     cursor = conn.cursor()
                     
                     for index, fila in df_editado.iterrows():
-                        estado_nuevo, _ = calcular_estado_y_agua(fila['cultivo'], fila['humedad_suelo_pct'], fila['hectareas'])
+                        estado_nuevo, agua_nueva = calcular_estado_y_agua(fila['cultivo'], fila['humedad_suelo_pct'], fila['hectareas'])
+                        
+                        # --- AQUÍ ESTÁ LA CORRECCIÓN: EL GATILLO AHORA SÍ ESTÁ EN LA TABLA ---
+                        if "Crítico" in estado_nuevo or "Requiere Riego" in estado_nuevo:
+                            disparar_alerta_movil(fila['id_parcela'], fila['humedad_suelo_pct'], agua_nueva)
                         
                         sql = """INSERT INTO registro_parcelas (id_parcela, sector, hectareas, cultivo, humedad_suelo_pct, estado) 
                                  VALUES (%s, %s, %s, %s, %s, %s)
@@ -151,12 +151,11 @@ try:
                     conn.commit()
                     cursor.close()
                     conn.close()
-                    st.success("¡Base de datos sincronizada con éxito! Todos los cambios han sido guardados.")
+                    st.success("¡Base de datos sincronizada!")
                     st.rerun() 
                 except Exception as e:
                     st.error(f"Error al sincronizar: {e}")
 
-        # --- PESTAÑA 2: DESCARGAS ---
         with pestana2:
             st.subheader("🔍 Exportador de Datos")
             buffer = io.BytesIO()
